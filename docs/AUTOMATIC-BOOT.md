@@ -5,7 +5,7 @@ Goal: press POWER and land in the NOVA menu without injecting a payload by hand.
 ## What actually starts a console
 
 A Nintendo Switch executes BOOT0 from its internal eMMC/NAND. No SD-card file can
-change that by itself, and NOVA does not modify BOOT0/BOOT1, the NAND or AutoRCM.
+change that by itself, and NOVA does not write BOOT0/BOOT1, the NAND or AutoRCM.
 Automatic startup therefore depends on an **external loader** that runs before
 BOOT0 and executes a payload file:
 
@@ -17,8 +17,10 @@ BOOT0 and executes a payload file:
   from the SD root on power-on. For unpatched Erista this is still a tethered
   setup (the dongle is required), but the payload itself can be NOVA.
 - **AutoRCM**: forces the console into RCM by corrupting the boot configuration
-  in BOOT0. NOVA deliberately does not implement or use it. It is a boot
-  partition modification and, on patched consoles, cannot be undone by software.
+  in BOOT0. NOVA does not enable it, but reads its state at startup. When it is
+  already active, NOVA arms `payload.bin` with its own payload so an RCM loader
+  starts NOVA instead of waiting at RCM (see below). AutoRCM itself is never
+  modified.
 
 ## Compatibility matrix
 
@@ -27,7 +29,7 @@ BOOT0 and executes a payload file:
 | Unpatched Erista (V1) | no | yes | dongle/modchip must read `payload.bin`; fusee-gelee consoles can also keep using an injector |
 | Patched Erista | no | yes | modchip only |
 | Mariko (V2 / Lite / OLED) | no | yes | modchip only |
-| Any console, no loader | no | no | BOOT0/AutoRCM is not modified |
+| Any console, no loader | no | no | AutoRCM still waits for an injector; BOOT0 is not modified |
 
 The installer can read the SoC type (Erista/Mariko) when `spl:` is accessible,
 but **it cannot detect whether a modchip is installed or which file its loader
@@ -41,7 +43,7 @@ INJECTOR` until the boot marker proves otherwise.
 1. Requires an installed, verified NOVA payload (`Nova/NOVA.bin`) and a valid
    hekate payload, because NOVA hands the actual boot to hekate.
 2. Refuses payloads larger than 128 KiB (modchip `sdloader` limit). NOVA is
-   about 84 KiB.
+   about 92 KiB.
 3. Backs up an existing `payload.bin` to
    `Nova/backup/autoboot/payload.bin` together with `meta.txt`
    (kind, size, SHA-256). If the slot was empty, the manifest records
@@ -53,13 +55,37 @@ INJECTOR` until the boot marker proves otherwise.
 
 No success is reported unless every file operation above is verified.
 
+## AutoRCM fallback
+
+At every start NOVA reads the BOOT0 BCT byte that AutoRCM changes. The read is
+best effort and **read-only**: NOVA never writes BOOT0/BOOT1. If AutoRCM is
+enabled:
+
+1. NOVA verifies `Nova/NOVA.bin` and hashes the current `payload.bin`.
+2. If the slot already contains the same NOVA payload, nothing is rewritten and
+   the fallback is reported `READY`.
+3. Otherwise the current payload is preserved under
+   `Nova/backup/autorcm/payload.bin` with `meta.txt` (SHA-256 and size), then
+   NOVA is written to `payload.bin`, read back and compared byte for byte.
+4. `Nova/state/autoboot.txt` is set to `pending` and
+   `Nova/state/autorcm.txt` records the result (`armed`, `ready` or `failed`).
+
+The boot screen shows an AutoRCM overlay for a moment, and the installer's
+`AUTOMATIC BOOT` screen shows the last result as `AUTORCM LAST BOOT`.
+
+This makes an RCM-capable loader/dongle/modchip start NOVA after an accidental
+AutoRCM boot. It cannot help a console with no injector: RCM waits for USB or a
+loader, so NOVA never executes. To leave AutoRCM, disable it from hekate's
+**Tools** menu (or inject hekate over USB). On an RCM-patched Erista, AutoRCM is
+unsafe; NOVA reports it but does not touch BOOT0.
+
 ## Verification after reboot
 
 NOVA writes `Nova/state/boot.txt` on every start:
 
 ```
 [nova]
-version=2.0.0
+version=2.0.1
 boots=7
 ```
 
@@ -96,7 +122,9 @@ If a cold boot fails and the console does not reach the NOVA menu:
 - dongle: inject hekate as before, mount the SD card and remove `payload.bin`.
 
 The previous payload is in `Nova/backup/autoboot/payload.bin`; copy it back to
-`payload.bin` to undo the change without booting the installer.
+`payload.bin` to undo the change without booting the installer. A payload that
+was replaced by the AutoRCM fallback is preserved separately under
+`Nova/backup/autorcm/payload.bin`.
 
 ## Why hekate autoboot is not written automatically
 
@@ -116,6 +144,10 @@ SD:/Nova/backup/autoboot/payload.bin    previous payload
 SD:/Nova/backup/autoboot/meta.txt       kind/size/SHA-256 of the previous payload
 SD:/Nova/state/autoboot.txt             pending/active/disabled + configured hash
 SD:/Nova/state/boot.txt                 NOVA boot counter
+SD:/Nova/state/autorcm.txt              last AutoRCM read + fallback result
+SD:/Nova/backup/autorcm/payload.bin     payload replaced by the AutoRCM fallback
+SD:/Nova/backup/autorcm/meta.txt        its SHA-256 and size
 ```
 
-No BOOT0, BOOT1, eMMC/NAND, `atmosphere/` or `emummc/` access is involved.
+No BOOT0/BOOT1/NAND writes are involved. The payload reads one BOOT0 BCT sector
+for AutoRCM detection; `atmosphere/` and `emummc/` are only inspected.

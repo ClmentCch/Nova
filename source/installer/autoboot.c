@@ -229,6 +229,24 @@ static void read_boot_marker(nova_autoboot_t *ab)
     free(text);
 }
 
+static void read_autorcm(nova_autoboot_t *ab)
+{
+    char *text = NULL;
+    size_t size = 0;
+
+    ab->autorcm_seen = false;
+    if (!read_text(NOVA_AUTORCM_STATE_FILE, &text, &size))
+        return;
+
+    ab->autorcm_seen = true;
+    nova_ini_get(text, (uint32_t)size, "autorcm", "state",
+                 ab->autorcm_state, sizeof(ab->autorcm_state));
+    nova_ini_get(text, (uint32_t)size, "autorcm", "fallback",
+                 ab->autorcm_fallback, sizeof(ab->autorcm_fallback));
+    read_u32_key(text, size, "autorcm", "boots", &ab->autorcm_boots);
+    free(text);
+}
+
 static void read_state(nova_autoboot_t *ab)
 {
     char *text = NULL;
@@ -300,6 +318,7 @@ void nova_autoboot_scan(nova_autoboot_t *ab)
     inspect_payload(ab);
     inspect_backup(ab);
     read_boot_marker(ab);
+    read_autorcm(ab);
     read_state(ab);
 
     switch (ab->state)

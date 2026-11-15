@@ -201,6 +201,27 @@ static void draw_auto(void)
     printf("  %-24s %s\n", "CONSOLE", g_auto.soc);
     printf("  %-24s %s\n", "COMPATIBILITY", nova_autoboot_compat_label(&g_auto));
 
+    printf("  %-24s ", "AUTORCM LAST BOOT");
+    if (!g_auto.autorcm_seen)
+    {
+        printf("not checked yet\n");
+    }
+    else
+    {
+        if (!strcmp(g_auto.autorcm_state, "enabled"))
+            printf(COLOR_WARN "ENABLED" COLOR_RESET);
+        else if (!strcmp(g_auto.autorcm_state, "disabled"))
+            printf(COLOR_OK "DISABLED" COLOR_RESET);
+        else if (!strcmp(g_auto.autorcm_state, "unsupported"))
+            printf("UNSUPPORTED");
+        else
+            printf(COLOR_WARN "UNKNOWN" COLOR_RESET);
+
+        if (g_auto.autorcm_fallback[0])
+            printf("   fallback %s", g_auto.autorcm_fallback);
+        printf("   boots %lu\n", (unsigned long)g_auto.autorcm_boots);
+    }
+
     printf("  %-24s ", "SD PAYLOAD SLOT");
     if (g_auto.payload_present)
         printf("%s  %llu B\n", nova_autoboot_kind_label(g_auto.payload_kind),
@@ -229,7 +250,7 @@ static void draw_auto(void)
     else
         printf("none\n");
 
-    printf("  %-24s %s\n", "BOOT0 / NAND", "not touched");
+    printf("  %-24s %s\n", "BOOT0 / NAND", "read only, never written");
     rule();
     printf("  %s\n", g_auto.detail);
     rule();

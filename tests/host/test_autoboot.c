@@ -123,6 +123,25 @@ static void test_autoboot_flow(void)
     CHECK(!ab.payload_present, "no payload.bin initially");
     CHECK(ab.state == NOVA_AUTO_NOT_CONFIGURED, "not configured initially");
     CHECK(ab.injector_limit_ok, "embedded payload fits the injector limit");
+    CHECK(!ab.autorcm_seen, "no AutoRCM record initially");
+
+    /* AutoRCM status written by the boot payload is surfaced read-only. */
+    CHECK(make_dir("Nova") && make_dir("Nova/state"), "state folder for AutoRCM test");
+    {
+        char marker[128];
+        int length = snprintf(marker, sizeof(marker),
+                              "[autorcm]\nstate=enabled\nfallback=armed\nversion=%s\nboots=7\n",
+                              NOVA_VERSION_STRING);
+        CHECK(nova_io_write(NOVA_AUTORCM_STATE_FILE, marker, (size_t)length) == 0,
+              "AutoRCM status written");
+    }
+    nova_autoboot_scan(&ab);
+    CHECK(ab.autorcm_seen, "AutoRCM status detected");
+    CHECK(strcmp(ab.autorcm_state, "enabled") == 0, "AutoRCM enabled parsed");
+    CHECK(strcmp(ab.autorcm_fallback, "armed") == 0, "AutoRCM fallback parsed");
+    CHECK(ab.autorcm_boots == 7, "AutoRCM boot count parsed");
+    CHECK(nova_io_remove(NOVA_AUTORCM_STATE_FILE) == 0, "AutoRCM status cleaned up");
+    nova_autoboot_scan(&ab);
 
     /* Existing hekate payload must be backed up before being replaced. */
     make_fake_hekate("payload.bin");

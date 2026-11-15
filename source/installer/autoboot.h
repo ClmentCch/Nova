@@ -4,7 +4,8 @@
  * Automatic startup is provided by the external loader (modchip sdloader or
  * an SD-payload capable dongle) that executes payload.bin from the SD root
  * instead of BOOT0. This module prepares, verifies and rolls back that slot.
- * It never touches BOOT0/BOOT1, the NAND or AutoRCM.
+ * It reads the AutoRCM status recorded by the boot payload but never writes
+ * BOOT0/BOOT1, the NAND or AutoRCM.
  *
  * Copyright (c) 2026 NOVA contributors.
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -17,9 +18,6 @@
 #include <stdint.h>
 
 #include "installer.h"
-
-/* Modchip sdloader rejects payloads larger than 128 KiB. */
-#define NOVA_AUTOBOOT_MAX_SIZE 0x20000u
 
 typedef enum nova_autoboot_state
 {
@@ -57,6 +55,12 @@ typedef struct nova_autoboot
     char backup_kind[24]; /* "none" means the slot was empty */
     char backup_sha[65];
     uint64_t backup_size;
+
+    /* Last AutoRCM check performed by the boot payload (read-only BOOT0). */
+    bool autorcm_seen;
+    char autorcm_state[16];
+    char autorcm_fallback[16];
+    uint32_t autorcm_boots;
 
     /* Configuration status. */
     nova_autoboot_state_t state;

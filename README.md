@@ -49,7 +49,8 @@ Nova-installer  -> Nova-Installer.nro, this application
 | `bootloader/ini/NOVA.ini` | NOVA | NOVA owned hekate entries (`nvstk`, `nvemu`) |
 | `payload.bin` | NOVA (auto boot) | cold boot slot read by modchip/dongle loaders |
 | `Nova/backup/autoboot/` | NOVA | previous `payload.bin` plus its manifest |
-| `Nova/state/` | NOVA | boot counter and automatic boot state |
+| `Nova/backup/autorcm/` | NOVA | payload preserved during the AutoRCM fallback |
+| `Nova/state/` | NOVA | boot counter, automatic boot and AutoRCM status |
 | `switch/Nova-Installer.nro` | user | this application |
 | `hekate_ctcaer_x.x.x.bin` | hekate | official payload, supplied by the release |
 
@@ -65,9 +66,11 @@ documented `boot_cfg` byte in its own in-memory payload copy to select the
 Automatic boot only fills the SD payload slot used by external modchip/dongle
 loaders. The installer cannot detect whether such a loader is installed, so
 compatibility is shown as unknown until NOVA's boot counter advances after a
-reboot. AutoRCM and any BOOT0/BOOT1 modification are deliberately not offered;
-they are the only way to force RCM in software and are outside NOVA's safety
-rules. See [docs/AUTOMATIC-BOOT.md](docs/AUTOMATIC-BOOT.md).
+reboot. AutoRCM is never enabled or written, but NOVA reads its BOOT0 state at
+startup: if AutoRCM is already active it arms `payload.bin` with NOVA (keeping
+the previous payload under `Nova/backup/autorcm/`) so an RCM loader starts NOVA.
+Without a loader, the console still waits at RCM; disable AutoRCM in hekate to
+leave it. See [docs/AUTOMATIC-BOOT.md](docs/AUTOMATIC-BOOT.md).
 
 ## Build
 
@@ -116,7 +119,8 @@ The archive contains `Nova/`, `switch/Nova-Installer.nro` and the official
 | Embedded payload byte-identical to Nova-boot `dist/NOVA.bin` | yes |
 | SHA-256 against FIPS test vectors | yes (5 checks) |
 | Installer engine: scan, transfer, install, uninstall, backup, restore | yes (43 host checks) |
-| Automatic boot: backup, verify, marker promotion, overwrite, rollback | yes (52 host checks) |
+| Automatic boot: backup, verify, marker promotion, overwrite, rollback | yes (60 host checks) |
+| AutoRCM status parsing and fallback record | yes (included in the 60 checks) |
 | Console UI rendered on a Switch | not run here |
 | Cold boot through a real modchip/dongle | not run here |
 | Install on a physical SD card | not run here |
