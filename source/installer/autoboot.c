@@ -339,13 +339,13 @@ void nova_autoboot_scan(nova_autoboot_t *ab)
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
-static int write_meta(const nova_autoboot_t *ab, char *err, size_t err_size)
+static int write_meta(const char *kind, const char *sha, uint64_t size,
+                      char *err, size_t err_size)
 {
     char text[256];
     int length = snprintf(text, sizeof(text),
                           "[autoboot-backup]\nkind=%s\nsha256=%s\nsize=%llu\n",
-                          ab->payload_kind, ab->payload_sha,
-                          (unsigned long long)ab->payload_size);
+                          kind, sha, (unsigned long long)size);
     if (length < 0 || length >= (int)sizeof(text))
     {
         set_err(err, err_size, "backup metadata too large");
@@ -467,6 +467,25 @@ static int restore_previous(nova_autoboot_t *ab, nova_progress_fn cb, void *ctx,
     return 0;
 }
 
+/*
+ * A failed write must never leave a half-written payload in the cold boot
+ * slot. Restore the recorded payload when one exists; otherwise delete the
+ * partial file so the loader falls back to its No SD / No Payload path.
+ */
+static void rollback_after_failure(nova_autoboot_t *ab)
+{
+    char ignored[96];
+
+    if (ab->backup_present)
+    {
+        restore_previous(ab, NULL, NULL, ignored, sizeof(ignored));
+        return;
+    }
+
+    if (nova_io_exists(NOVA_AUTOBOOT_PAYLOAD))
+        nova_io_remove(NOVA_AUTOBOOT_PAYLOAD);
+}
+
 /* ------------------------------------------------------------------ */
 /* Enable / disable                                                    */
 /* ------------------------------------------------------------------ */
@@ -505,8 +524,14 @@ int nova_autoboot_enable(nova_autoboot_t *ab, nova_progress_fn cb, void *ctx,
     }
 
     bool keep_backup = ab->payload_is_nova && ab->backup_present;
+    /*
+     * A payload that is already NOVA is not a useful rollback target: a
+     * "restore previous" must disable automatic boot, not silently keep it.
+     * Only a different payload is backed up.
+     */
+    bool previous_usable = ab->payload_present && !ab->payload_is_nova;
     uint64_t total = payload_size;
-    if (!keep_backup && ab->payload_present)
+    if (!keep_backup && previous_usable)
         total += ab->payload_size;
 
     uint64_t done = 0;
@@ -530,7 +555,7 @@ int nova_autoboot_enable(nova_autoboot_t *ab, nova_progress_fn cb, void *ctx,
             return -1;
         }
 
-        if (ab->payload_present)
+        if (previous_usable)
         {
             if (nova_io_copy(NOVA_AUTOBOOT_PAYLOAD, NOVA_AUTOBOOT_BACKUP_FILE,
                              cb, ctx, "backing up payload.bin", &done, total) != 0)
@@ -548,15 +573,16 @@ int nova_autoboot_enable(nova_autoboot_t *ab, nova_progress_fn cb, void *ctx,
             }
         }
 
-        if (write_meta(ab, err, err_size) != 0)
+        if (write_meta(previous_usable ? ab->payload_kind : "none",
+                       previous_usable ? ab->payload_sha : "",
+                       previous_usable ? ab->payload_size : 0,
+                       err, err_size) != 0)
             return -1;
     }
 
     if (write_payload_progress(payload, payload_size, cb, ctx, &done, total) != 0)
     {
-        char restore_err[96];
-        if (ab->backup_present)
-            restore_previous(ab, NULL, NULL, restore_err, sizeof(restore_err));
+        rollback_after_failure(ab);
         set_err(err, err_size, "cannot write payload.bin");
         return -1;
     }
@@ -575,9 +601,7 @@ int nova_autoboot_enable(nova_autoboot_t *ab, nova_progress_fn cb, void *ctx,
 
     if (!verified)
     {
-        char restore_err[96];
-        if (ab->backup_present)
-            restore_previous(ab, NULL, NULL, restore_err, sizeof(restore_err));
+        rollback_after_failure(ab);
         set_err(err, err_size, "payload.bin failed post-write verification");
         return -1;
     }
@@ -592,7 +616,10 @@ int nova_autoboot_enable(nova_autoboot_t *ab, nova_progress_fn cb, void *ctx,
     }
 
     if (write_state("pending", expected, boots_at, err, err_size) != 0)
+    {
+        rollback_after_failure(ab);
         return -1;
+    }
 
     nova_autoboot_scan(ab);
     if (ab->state == NOVA_AUTO_OVERWRITTEN || !ab->payload_is_nova)

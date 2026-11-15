@@ -182,6 +182,21 @@ static void test_autoboot_flow(void)
     CHECK(!ab.payload_present, "payload.bin removed on rollback");
     CHECK(ab.state == NOVA_AUTO_DISABLED, "empty rollback state");
 
+    /* An unmanaged NOVA slot rolls back to empty, not to NOVA again. */
+    CHECK(nova_io_remove_tree("Nova/backup", 0) == 0, "backup removed for unmanaged test");
+    CHECK(nova_io_write(NOVA_AUTOBOOT_PAYLOAD, g_blob, g_blob_size) == 0,
+          "unmanaged NOVA payload written");
+    nova_autoboot_scan(&ab);
+    CHECK(ab.payload_is_nova, "unmanaged payload detected as NOVA");
+    CHECK(!ab.backup_present, "no rollback record for unmanaged NOVA");
+    CHECK(nova_autoboot_enable(&ab, progress, NULL, err, sizeof(err)) == 0,
+          "enable over unmanaged NOVA succeeds");
+    CHECK(strcmp(ab.backup_kind, "none") == 0, "unmanaged NOVA is not a rollback target");
+    CHECK(nova_autoboot_disable(&ab, progress, NULL, err, sizeof(err)) == 0,
+          "disable removes unmanaged NOVA slot");
+    nova_autoboot_scan(&ab);
+    CHECK(!ab.payload_present, "unmanaged NOVA slot left empty");
+
     /* Oversized payloads are refused. */
     uint32_t saved = g_blob_size;
     g_blob_size = NOVA_AUTOBOOT_MAX_SIZE + 1;
