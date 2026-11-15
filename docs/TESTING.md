@@ -26,11 +26,14 @@ Honest status of what has been verified in this branch.
 
 ## Verified structurally
 
-* `NOVA.bin` builds with devkitARM 15.2.0: 85,672 bytes.
+* `NOVA.bin` builds with devkitARM 15.2.0: 93,656 bytes.
 * ELF machine `EM_ARM`, entry `0x40010000`, no relocations, required symbols
   present, `.bss` inside the stack budget (`tools/verify_payload.py`).
 * The complete UI is rendered on the host from the shipping drawing code
   (`docs/nova-menu.png`), which caught and fixed a rounded-corner bug.
+* AutoRCM detection, the BOOT0 read and the payload-slot fallback compile with
+  the payload; they are not executable in the host harness because they need
+  the Tegra eMMC controller.
 
 ## Not tested
 

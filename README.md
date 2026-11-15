@@ -60,15 +60,26 @@ genuine ARM32 payload inside their 128 KB limit, so it can occupy that slot:
 | Unpatched Erista | yes | a dongle/modchip loader that reads `payload.bin` from SD |
 | Patched Erista | yes | a modchip (fusee-gelee is patched out) |
 | Mariko (V2/Lite/OLED) | yes | a modchip (sdloader reads `payload.bin`) |
-| Any console, no injector | no | BOOT0/AutoRCM is intentionally not used |
+| Any console, no injector | no | an injector is still required |
 
 NOVA Installer writes and verifies this file, backs up the previous payload and
 restores it on request. Automatic boot is never claimed as working until the
 NOVA boot marker advances after a reboot. See the installer branch for the
 `AUTOMATIC BOOT` screen and the full hardware matrix.
 
-NOVA itself never enables AutoRCM or touches BOOT0/BOOT1; AutoRCM corrupts the
-boot configuration and is excluded by design.
+### AutoRCM fallback
+
+At startup NOVA reads — without writing — the BOOT0 BCT byte that AutoRCM
+changes. If AutoRCM is enabled, NOVA arms `payload.bin` with its own verified
+`Nova/NOVA.bin` and preserves any existing payload under
+`Nova/backup/autorcm/`. An RCM-capable loader, dongle or modchip therefore
+starts NOVA instead of leaving the console waiting at RCM. The boot overlay
+reports whether the slot is `READY`, was just `ARMED`, or could not be armed.
+
+This is a fallback through the loader, not a BOOT0 repair. NOVA never writes
+BOOT0/BOOT1 or the NAND. Without a loader that injects `payload.bin`, no
+software can leave RCM: disable AutoRCM from hekate's **Tools** menu (or inject
+hekate over USB) and let the modchip/dongle boot normally.
 
 ## Build
 
@@ -84,7 +95,7 @@ make -C payload HEKATE=/path/to/hekate
 payload linked at `0x40010000` inside the IRAM budget. See
 [`docs/BUILD.md`](docs/BUILD.md) for the toolchain setup (devkitPro) and CI.
 
-Latest build in this branch: `dist/NOVA.bin` (86,224 bytes, NOVA 2.0.0).
+Latest build in this branch: `dist/NOVA.bin` (93,656 bytes, NOVA 2.0.1).
 
 ## Verification status
 
@@ -96,6 +107,7 @@ Latest build in this branch: `dist/NOVA.bin` (86,224 bytes, NOVA 2.0.0).
 | UI layout and rendering | **rendered on host** from the shipping drawing code |
 | Boot marker write on console | **not tested on hardware** |
 | Automatic cold boot through a modchip/dongle | **not tested on hardware** |
+| AutoRCM detection and payload-slot fallback | **compiled, not tested on hardware** |
 | Real console boot (display, SD, Joy-Con, chainload) | **not tested on hardware** |
 
 NOVA Boot has not been executed on a Nintendo Switch in this project yet. It is
@@ -105,7 +117,7 @@ bring-up, but that is not the same as hardware validation — see
 
 ## Safety
 
-* No NAND, BOOT0/BOOT1 or eMMC access of any kind; NOVA only mounts the SD card.
+* No writes to the NAND, BOOT0/BOOT1 or eMMC. NOVA reads one BOOT0 BCT sector to detect AutoRCM; everything else stays on the SD card.
 * hekate performs the actual HOS boot, exactly as it does normally.
 * Any failure (missing payload, bad image, missing SD) shows an error instead of
   booting something unverified.

@@ -15,3 +15,4 @@ tests/host/test_installer
 tests/host/test_sha256
 tests/host/sdmc:/
 release/
+tests/host/test_autoboot

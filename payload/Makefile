@@ -49,7 +49,8 @@ SOURCES := start.S \
            core/nova_str.c \
            core/nova_ini.c \
            core/nova_detect.c \
-           core/nova_hekate.c
+           core/nova_hekate.c \
+           core/nova_sha256.c
 
 BDK_SOURCES := $(shell find $(HEKATE)/bdk -name '*.c' \
                  ! -path '*/usb/*' ! -path '*/libs/compr/*' 2>/dev/null)

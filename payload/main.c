@@ -79,6 +79,7 @@ static int g_selected;
 
 static char g_toast[64];
 static uint32_t g_toast_until;
+static nova_autorcm_t g_autorcm;
 
 /* ------------------------------------------------------------------ */
 /* Small helpers                                                       */
@@ -486,6 +487,41 @@ static void draw_boot_overlay(const char *title, const char *detail, uint32_t no
     nova_text_center(SCREEN_W / 2, 900, "DO NOT POWER OFF", 2, COL_FAINT);
 }
 
+static void draw_autorcm_overlay(const nova_autorcm_t *autorcm, uint32_t now)
+{
+    nova_fill(0, 0, SCREEN_W, SCREEN_H, 0xFF03040A);
+    nova_glow(SCREEN_W / 2, 520, 300, COL_AMBER, 20);
+
+    nova_text_center(SCREEN_W / 2, 400, "! AUTORCM DETECTED !", 3, COL_AMBER);
+    nova_text_center(SCREEN_W / 2, 500, nova_autorcm_state_label(autorcm->state), 2, COL_TEXT);
+
+    nova_text_center(SCREEN_W / 2, 570, "RCM FALLBACK", 2, COL_DIM);
+    nova_text_center(SCREEN_W / 2, 610, nova_autorcm_fallback_label(autorcm->fallback), 3,
+                     autorcm->fallback == NOVA_AUTORCM_FALLBACK_FAILED ? COL_RED : COL_GREEN);
+
+    const char *line1 = "payload.bin is armed with NOVA";
+    const char *line2 = "Boot again with your RCM loader or dongle";
+    if (autorcm->fallback == NOVA_AUTORCM_FALLBACK_READY)
+        line1 = "payload.bin already contains NOVA";
+    else if (autorcm->fallback == NOVA_AUTORCM_FALLBACK_FAILED)
+    {
+        line1 = "NOVA could not arm payload.bin automatically";
+        line2 = "Run Nova Installer or fix the SD card";
+    }
+
+    nova_text_center(SCREEN_W / 2, 720, line1, 2, COL_TEXT);
+    nova_text_center(SCREEN_W / 2, 760, line2, 2, COL_DIM);
+    nova_text_center(SCREEN_W / 2, 860, "BOOT0 is never modified by NOVA", 2, COL_FAINT);
+
+    nova_text_center(SCREEN_W / 2, 960, "Continuing to the NOVA menu", 2, COL_FAINT);
+
+    for (int i = 0; i < 8; i++)
+    {
+        int a = i == (int)((now / 120) % 8) ? 255 : 50 + i * 10;
+        nova_dot(SCREEN_W / 2 - 84 + i * 24, 1020, 7, nova_dim(COL_CYAN, (uint32_t)a));
+    }
+}
+
 static void draw_error_screen(const char *title, const char *line1, const char *line2)
 {
     nova_fill(0, 0, SCREEN_W, SCREEN_H, 0xFF03040A);
@@ -711,6 +747,25 @@ void ipl_main(void)
      * counter advances, so a failed write can never look like success.
      */
     nova_platform_note_boot();
+
+    /*
+     * If AutoRCM was enabled, arm the RCM payload slot before showing the
+     * menu. NOVA only reads BOOT0; it never writes it.
+     */
+    nova_platform_autorcm_prepare(&g_autorcm);
+    if (g_autorcm.state == NOVA_AUTORCM_ENABLED)
+    {
+        uint32_t start = nova_platform_ms();
+        uint32_t hold = g_autorcm.fallback == NOVA_AUTORCM_FALLBACK_FAILED ? 2600 : 1800;
+        for (;;)
+        {
+            uint32_t now = nova_platform_ms();
+            draw_autorcm_overlay(&g_autorcm, now);
+            if (now - start > hold)
+                break;
+            nova_platform_delay(16);
+        }
+    }
 
     /* Self provision NOVA's own hekate entries (never touches user files). */
     if (g_status.sd_mounted && g_status.hekate == NOVA_ST_OK)

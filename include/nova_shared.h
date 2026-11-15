@@ -12,10 +12,10 @@
 #define NOVA_SHARED_H
 
 /* Release version. Also written to Nova/version.txt by the installer. */
-#define NOVA_VERSION_STRING "2.0.0"
+#define NOVA_VERSION_STRING "2.0.1"
 #define NOVA_VERSION_MAJOR  2
 #define NOVA_VERSION_MINOR  0
-#define NOVA_VERSION_PATCH  0
+#define NOVA_VERSION_PATCH  1
 
 /* Installer applet identity. */
 #define NOVA_INSTALLER_NAME    "NOVA Installer"
@@ -59,9 +59,11 @@
  * NOVA writes Nova/state/boot.txt on every start so the installer can show
  * whether a configured cold boot actually reached NOVA.
  *
- * BOOT0/BOOT1 and AutoRCM are never touched.
+ * BOOT0/BOOT1 are never written. AutoRCM is only read so NOVA can arm this
+ * same slot when the console reaches RCM through an accidental AutoRCM boot.
  */
 #define NOVA_AUTOBOOT_PAYLOAD      "payload.bin"
+#define NOVA_AUTOBOOT_MAX_SIZE     0x20000u
 #define NOVA_AUTOBOOT_BACKUP_DIR   "Nova/backup/autoboot"
 #define NOVA_AUTOBOOT_BACKUP_FILE  "Nova/backup/autoboot/payload.bin"
 #define NOVA_AUTOBOOT_META_FILE    "Nova/backup/autoboot/meta.txt"
@@ -69,6 +71,19 @@
 #define NOVA_BOOT_MARKER           "Nova/state/boot.txt"
 #define NOVA_AUTOBOOT_STATE_FILE   "Nova/state/autoboot.txt"
 #define NOVA_AUTOBOOT_MODE         "sd_payload"
+
+/*
+ * AutoRCM fallback.
+ *
+ * NOVA reads the BOOT0 BCT byte that AutoRCM changes, but never writes it.
+ * When AutoRCM is active, NOVA prepares payload.bin for the RCM injector and
+ * records the result here. A foreign payload is preserved under Nova/backup/
+ * autorcm before the slot is replaced.
+ */
+#define NOVA_AUTORCM_STATE_FILE    "Nova/state/autorcm.txt"
+#define NOVA_AUTORCM_BACKUP_DIR    "Nova/backup/autorcm"
+#define NOVA_AUTORCM_BACKUP_FILE   "Nova/backup/autorcm/payload.bin"
+#define NOVA_AUTORCM_META_FILE     "Nova/backup/autorcm/meta.txt"
 
 /* Atmosphère / emuMMC paths inspected for detection (read-only). */
 #define NOVA_ATMOSPHERE_DIR     "atmosphere"

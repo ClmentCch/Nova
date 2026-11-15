@@ -16,9 +16,13 @@ after the configuration. This proves execution, not who triggered it, so the
 installer still labels the mode as awaiting confirmation until the marker
 moves and always tells the user to power-cycle to verify.
 
-BOOT0/BOOT1, the NAND and AutoRCM are never touched. Removing `payload.bin`
-or restoring the backed-up payload returns the console to its previous cold
-boot behaviour.
+BOOT0/BOOT1 and the NAND are never written. AutoRCM is read from the BOOT0 BCT
+at startup: when it is active, NOVA rewrites only the SD `payload.bin` slot
+(after preserving the previous payload under `Nova/backup/autorcm/`) so an RCM
+loader starts NOVA instead of waiting. Without such a loader the console stays
+in RCM; NOVA does not modify BOOT0 to escape it. Removing `payload.bin` or
+restoring the backed-up payload returns the console to its previous cold boot
+behaviour.
 
 ## Why a payload, not an NRO
 
@@ -45,6 +49,7 @@ RCM / modchip / hekate payloads menu
 NOVA payload @ 0x40010000
   hw_init → heap → display → sd_mount → Joy-Con
         │
+        ├─ read BOOT0 BCT (read-only): if AutoRCM, arm payload.bin for RCM
         ├─ detect: atmosphere/, package3, emummc.ini, emummc.kipm, hekate*.bin
         ├─ ensure bootloader/ini/NOVA.ini exists (NOVA owned file)
         └─ menu
