@@ -84,7 +84,7 @@ make -C payload HEKATE=/path/to/hekate
 payload linked at `0x40010000` inside the IRAM budget. See
 [`docs/BUILD.md`](docs/BUILD.md) for the toolchain setup (devkitPro) and CI.
 
-Latest build in this branch: `dist/NOVA.bin` (86,224 bytes, NOVA 1.1.0).
+Latest build in this branch: `dist/NOVA.bin` (86,224 bytes, NOVA 2.0.0).
 
 ## Verification status
 
