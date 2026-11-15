@@ -705,6 +705,13 @@ void ipl_main(void)
         }
     }
 
+    /*
+     * Record this start before doing anything else with the SD card. The
+     * installer only reports a configured cold boot as working after this
+     * counter advances, so a failed write can never look like success.
+     */
+    nova_platform_note_boot();
+
     /* Self provision NOVA's own hekate entries (never touches user files). */
     if (g_status.sd_mounted && g_status.hekate == NOVA_ST_OK)
     {

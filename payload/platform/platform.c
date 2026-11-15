@@ -246,6 +246,8 @@ bool nova_platform_write_text(const char *path, const char *text, uint32_t len)
     /* Make sure the parent folders exist. */
     f_mkdir("bootloader");
     f_mkdir("bootloader/ini");
+    f_mkdir(NOVA_ROOT_DIR);
+    f_mkdir(NOVA_STATE_DIR);
 
     FIL fp;
     if (f_open(&fp, path, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
@@ -258,6 +260,74 @@ bool nova_platform_write_text(const char *path, const char *text, uint32_t len)
     f_close(&fp);
 
     return ok;
+}
+
+/* ------------------------------------------------------------------ */
+/* Boot marker                                                         */
+/* ------------------------------------------------------------------ */
+static void marker_append(char *out, uint32_t size, uint32_t *pos, const char *text)
+{
+    while (*text && *pos + 1 < size)
+        out[(*pos)++] = *text++;
+    out[*pos] = '\0';
+}
+
+static void marker_append_u32(char *out, uint32_t size, uint32_t *pos, uint32_t value)
+{
+    char digits[12];
+    uint32_t count = 0;
+
+    if (!value)
+        digits[count++] = '0';
+
+    while (value && count < sizeof(digits))
+    {
+        digits[count++] = (char)('0' + (value % 10));
+        value /= 10;
+    }
+
+    while (count && *pos + 1 < size)
+        out[(*pos)++] = digits[--count];
+    out[*pos] = '\0';
+}
+
+bool nova_platform_note_boot(void)
+{
+    if (!g_sd_ready)
+        return false;
+
+    f_mkdir(NOVA_ROOT_DIR);
+    f_mkdir(NOVA_STATE_DIR);
+
+    uint32_t boots = 0;
+    char text[128];
+    UINT read = 0;
+    FIL fp;
+
+    if (f_open(&fp, NOVA_BOOT_MARKER, FA_READ) == FR_OK)
+    {
+        if (f_read(&fp, text, sizeof(text) - 1, &read) == FR_OK)
+        {
+            text[read] = '\0';
+            char value[16];
+            if (nova_ini_get(text, read, "nova", "boots", value, sizeof(value)))
+                boots = (uint32_t)nova_atoi(value);
+        }
+        f_close(&fp);
+    }
+
+    if (boots < 999999u)
+        boots++;
+
+    char out[160];
+    uint32_t pos = 0;
+    out[0] = '\0';
+    marker_append(out, sizeof(out), &pos,
+                  "[nova]\nversion=" NOVA_VERSION_STRING "\nboots=");
+    marker_append_u32(out, sizeof(out), &pos, boots);
+    marker_append(out, sizeof(out), &pos, "\n");
+
+    return nova_platform_write_text(NOVA_BOOT_MARKER, out, pos);
 }
 
 /* ------------------------------------------------------------------ */

@@ -48,6 +48,12 @@ void nova_platform_input(nova_input_t *out);
 /* Writes a NOVA owned text file (used for bootloader/ini/NOVA.ini). */
 bool nova_platform_write_text(const char *path, const char *text, uint32_t len);
 
+/*
+ * Records one NOVA start in Nova/state/boot.txt. Used by the installer to
+ * confirm that a configured cold boot actually reached NOVA.
+ */
+bool nova_platform_note_boot(void);
+
 /* Hand control to a payload image at 0x40010000. Does not return. */
 void nova_platform_chainload(void *image, uint32_t size) __attribute__((noreturn));
 

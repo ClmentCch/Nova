@@ -1,5 +1,25 @@
 # NOVA Boot architecture
 
+## Cold boot entry
+
+On consoles with a modchip or an SD-payload-capable dongle, the loader reads
+`payload.bin` from the SD root and executes it instead of BOOT0. NOVA is a
+payload in that format (ARM32, linked at `0x40010000`, under 128 KB), so the
+same `NOVA.bin` can be used both from hekate's payload menu and from the cold
+boot slot. NOVA starts, draws its menu, and chainloads hekate exactly as it
+does when launched from hekate.
+
+After mounting the SD card, NOVA appends one start to `Nova/state/boot.txt`.
+The installer compares that counter with the value recorded when automatic
+boot was configured; only an increase is accepted as evidence that NOVA ran
+after the configuration. This proves execution, not who triggered it, so the
+installer still labels the mode as awaiting confirmation until the marker
+moves and always tells the user to power-cycle to verify.
+
+BOOT0/BOOT1, the NAND and AutoRCM are never touched. Removing `payload.bin`
+or restoring the backed-up payload returns the console to its previous cold
+boot behaviour.
+
 ## Why a payload, not an NRO
 
 An `.nro` is a homebrew executable for Horizon OS: it needs a running kernel,

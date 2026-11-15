@@ -44,6 +44,32 @@ The selection is passed through hekate's documented *Payload storage*
 `bootloader/hekate_ipl.ini`. It only ever creates its own
 `bootloader/ini/NOVA.ini`, which hekate scans automatically when booting by ID.
 
+On every start NOVA writes `Nova/state/boot.txt` with a boot counter. The
+installer uses it to prove that a configured automatic boot actually reached
+NOVA; without that marker the installer reports "awaiting cold boot", never
+success.
+
+## Automatic cold boot
+
+Modchip and dongle loaders (Spacecraft-NX/HWFLY-NX, Picofly, SD-payload-capable
+RCM dongles) boot `/payload.bin` from the SD root **instead of BOOT0**. NOVA is a
+genuine ARM32 payload inside their 128 KB limit, so it can occupy that slot:
+
+| Console | Cold boot of NOVA | Requirement |
+| --- | --- | --- |
+| Unpatched Erista | yes | a dongle/modchip loader that reads `payload.bin` from SD |
+| Patched Erista | yes | a modchip (fusee-gelee is patched out) |
+| Mariko (V2/Lite/OLED) | yes | a modchip (sdloader reads `payload.bin`) |
+| Any console, no injector | no | BOOT0/AutoRCM is intentionally not used |
+
+NOVA Installer writes and verifies this file, backs up the previous payload and
+restores it on request. Automatic boot is never claimed as working until the
+NOVA boot marker advances after a reboot. See the installer branch for the
+`AUTOMATIC BOOT` screen and the full hardware matrix.
+
+NOVA itself never enables AutoRCM or touches BOOT0/BOOT1; AutoRCM corrupts the
+boot configuration and is excluded by design.
+
 ## Build
 
 ```bash
@@ -58,7 +84,7 @@ make -C payload HEKATE=/path/to/hekate
 payload linked at `0x40010000` inside the IRAM budget. See
 [`docs/BUILD.md`](docs/BUILD.md) for the toolchain setup (devkitPro) and CI.
 
-Latest build in this branch: `dist/NOVA.bin` (85,672 bytes).
+Latest build in this branch: `dist/NOVA.bin` (86,224 bytes, NOVA 1.1.0).
 
 ## Verification status
 
@@ -68,6 +94,8 @@ Latest build in this branch: `dist/NOVA.bin` (85,672 bytes).
 | `NOVA.bin` cross compilation | **compiled** with devkitA64/devkitARM 15.2.0 |
 | Payload format (ELF/ARM32/entry/size/relocations) | **verified** by `tools/verify_payload.py` |
 | UI layout and rendering | **rendered on host** from the shipping drawing code |
+| Boot marker write on console | **not tested on hardware** |
+| Automatic cold boot through a modchip/dongle | **not tested on hardware** |
 | Real console boot (display, SD, Joy-Con, chainload) | **not tested on hardware** |
 
 NOVA Boot has not been executed on a Nintendo Switch in this project yet. It is

@@ -8,3 +8,10 @@ tests/host/build/
 *.raw
 dist/*.zip
 !.gitkeep
+
+# Artifacts from the Nova-installer branch share the checked-out worktree.
+Nova-Installer.*
+tests/host/test_installer
+tests/host/test_sha256
+tests/host/sdmc:/
+release/
