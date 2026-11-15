@@ -528,6 +528,14 @@ int main(int argc, char **argv)
     (void)argv;
 
     consoleInit(NULL);
+
+    /*
+     * The HID layout must be configured before a PadState is created.
+     * padConfigureInput() is what sets the supported Npad style set; without
+     * it padUpdate() reads no controller style at all and every button press
+     * is silently ignored.
+     */
+    padConfigureInput(1, HidNpadStyleSet_NpadStandard);
     padInitializeDefault(&g_pad);
 
     int view = 0; /* 0 = main, 1 = backup, 2 = automatic boot */

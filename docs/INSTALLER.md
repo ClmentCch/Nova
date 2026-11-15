@@ -64,6 +64,15 @@ Rendering is also decoupled from reading the SD card. The dashboard is scanned
 once at startup and after every action, not on each frame, so navigating the
 menus never repeats checksum work on the payload copies.
 
+## Input
+
+A `PadState` alone is not enough. `padConfigureInput()` is what calls
+`hidSetSupportedNpadStyleSet`; without it libnx reads an empty style set,
+`padUpdate()` collects no buttons and the menus ignore the D-pad and A/B while
+the screen renders normally. `main()` configures one player with
+`HidNpadStyleSet_NpadStandard` (handheld, full key and dual Joy-Con) before
+`padInitializeDefault()`.
+
 ## Progress and checksums
 
 File writes are chunked at 16 KiB and report `(stage, done, total)` to the

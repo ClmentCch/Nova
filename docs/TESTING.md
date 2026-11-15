@@ -7,7 +7,7 @@ Environment: Linux container, devkitA64 15.2.0 and libnx from the official
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Compile and link the NRO | `make -j4` | pass, `Nova-Installer.nro` 418,919 bytes |
+| Compile and link the NRO | `make -j4` | pass, `Nova-Installer.nro` 423,015 bytes |
 | NRO layout (`NRO0` at 0x10, segments inside code size) | `tools/verify_nro.py` | pass |
 | Asset section (`ASET`, icon 5,167 B, NACP 16,384 B) | `tools/verify_nro.py` | pass |
 | Embedded payload byte-identical to `data/NOVA.bin` | `tools/verify_nro.py` | pass |
@@ -16,10 +16,11 @@ Environment: Linux container, devkitA64 15.2.0 and libnx from the official
 | Automatic boot backup, marker, overwrite, rollback and AutoRCM status | `make -C tests/host` | 60 checks, 0 failures |
 | Release archive contents and inputs | `tools/release.py` | pass |
 | Console frames flushed to the display (`consoleUpdate`) | `aarch64-none-elf-objdump -d`, 7 calls | pass |
+| Controller layout configured before reading input (`padConfigureInput`) | `aarch64-none-elf-objdump -d`, 1 call to `padConfigureInput` and `hidSetSupportedNpadStyleSet` | pass |
 
 The payload embedded in the NRO is the `dist/NOVA.bin` file built and
-verified in the `Nova-boot` branch (93,656 bytes, NOVA 2.2.0, SHA-256
-`10e205d6bf6404bc7ae0b87341f89fb90dc0f6b83293f012a6a8e03676fb9fbc`).
+verified in the `Nova-boot` branch (93,656 bytes, NOVA 2.3.0, SHA-256
+`f465e7c31b879d9f786169e780190201cd6de0ce043d210cfc6b2a2e518fd688`).
 
 ### Installer engine tests
 
