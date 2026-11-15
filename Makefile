@@ -18,9 +18,13 @@ SOURCES     :=  source source/core source/installer
 DATA        :=
 INCLUDES    :=  include source/core source/installer
 
+# The NACP version always matches include/nova_shared.h, so the applet and the
+# embedded payload can never advertise different releases.
+NOVA_VERSION :=  $(shell sed -n 's/.*NOVA_VERSION_STRING[[:space:]]*"\([0-9.]*\)".*/\1/p' $(TOPDIR)/include/nova_shared.h)
+
 APP_TITLE   :=  NOVA Installer
 APP_AUTHOR  :=  NOVA
-APP_VERSION :=  1.0.0
+APP_VERSION :=  $(NOVA_VERSION)
 APP_ICON    :=  $(CURDIR)/icon.jpg
 
 #---------------------------------------------------------------------------------

@@ -85,7 +85,7 @@ NOVA writes `Nova/state/boot.txt` on every start:
 
 ```
 [nova]
-version=2.0.1
+version=2.2.0
 boots=7
 ```
 

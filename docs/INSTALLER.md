@@ -52,6 +52,18 @@ limit enforced by modchip `sdloader` firmware.
 (root `hekate*.bin` or `bootloader/payloads/hekate*.bin`) and at least
 three payload copies of free space.
 
+## Rendering
+
+libnx keeps the console contents in memory and only submits a frame to the
+display from `consoleUpdate()`. Every screen built by `source/main.c` therefore
+ends with `present()`, which is that call. Skipping it leaves a black screen
+that looks exactly like a failed launch: the applet is running, reads the SD
+card and answers the pad, but nothing is ever drawn.
+
+Rendering is also decoupled from reading the SD card. The dashboard is scanned
+once at startup and after every action, not on each frame, so navigating the
+menus never repeats checksum work on the payload copies.
+
 ## Progress and checksums
 
 File writes are chunked at 16 KiB and report `(stage, done, total)` to the

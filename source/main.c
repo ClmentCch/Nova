@@ -34,6 +34,20 @@ static int g_selected;
 static int g_last_percent = -1;
 static char g_last_stage[48];
 
+/* Set when an action changed the SD card: the dashboard is rescanned once,
+ * instead of hashing files again on every rendered frame. */
+static bool g_rescan = true;
+
+/*
+ * libnx only submits the console buffer to the display from consoleUpdate().
+ * Printing alone leaves the screen untouched, so a build without this call
+ * stays black and looks like the NRO never started.
+ */
+static void present(void)
+{
+    consoleUpdate(NULL);
+}
+
 static void sleep_ms(u32 ms)
 {
     svcSleepThread((u64)ms * 1000000ULL);
@@ -296,6 +310,7 @@ static void draw_progress(const char *stage, u64 done, u64 total)
     printf("  %s of %s\n", done_text, total_text);
     printf("  %llu / %llu bytes\n\n", (unsigned long long)done, (unsigned long long)total);
     printf("  " COLOR_TEXT "Do not power off the console." COLOR_RESET "\n");
+    present();
 }
 
 static void progress_cb(void *ctx, const char *stage, u64 done, u64 total)
@@ -330,6 +345,7 @@ static void show_result(const char *title, bool success, const char *line1, cons
     rule();
     printf("  Press " COLOR_TEXT "A" COLOR_RESET " or " COLOR_TEXT "B" COLOR_RESET
            " to continue.\n");
+    present();
     wait_for_continue();
 }
 
@@ -340,6 +356,7 @@ static bool confirm_dialog(const char *title, const char *question)
     printf("\n  %s\n\n", question);
     printf("  " COLOR_TEXT "A" COLOR_RESET " CONFIRM    " COLOR_TEXT "B" COLOR_RESET
            " CANCEL\n");
+    present();
 
     while (appletMainLoop())
     {
@@ -364,6 +381,7 @@ static void begin_progress(const char *stage)
 
 static void run_transfer(void)
 {
+    g_rescan = true;
     begin_progress("Preparing transfer");
     if (nova_transfer(&g_state, progress_cb, NULL, g_error, sizeof(g_error)) != 0)
     {
@@ -386,6 +404,7 @@ static void run_transfer(void)
 
 static void run_install(void)
 {
+    g_rescan = true;
     begin_progress("Checking compatibility");
     if (nova_install(&g_state, progress_cb, NULL, g_error, sizeof(g_error)) != 0)
     {
@@ -399,6 +418,7 @@ static void run_install(void)
 
 static void run_uninstall(void)
 {
+    g_rescan = true;
     if (!confirm_dialog("UNINSTALL NOVA",
                         "Remove NOVA files and restore the previous configuration?"))
         return;
@@ -416,6 +436,7 @@ static void run_uninstall(void)
 
 static void run_auto_enable(void)
 {
+    g_rescan = true;
     if (!confirm_dialog("ENABLE AUTOMATIC BOOT",
                         "Set SD:/payload.bin to NOVA? The current payload is backed up first."))
         return;
@@ -434,6 +455,8 @@ static void run_auto_enable(void)
 
 static void run_auto_disable(void)
 {
+    g_rescan = true;
+
     char previous[24];
     snprintf(previous, sizeof(previous), "%s", g_auto.backup_kind);
 
@@ -459,12 +482,14 @@ static void run_auto_disable(void)
 
 static void run_auto_recheck(void)
 {
+    g_rescan = true;
     nova_autoboot_scan(&g_auto);
     show_result("AUTOMATIC BOOT", true, nova_autoboot_state_label(g_auto.state), g_auto.detail);
 }
 
 static void run_backup_action(int action)
 {
+    g_rescan = true;
     begin_progress("Working");
 
     switch (action)
@@ -515,7 +540,7 @@ int main(int argc, char **argv)
         padUpdate(&g_pad);
         u64 down = padGetButtonsDown(&g_pad);
 
-        if (nova_scan(&g_state, g_error, sizeof(g_error)) != 0)
+        if (g_rescan && nova_scan(&g_state, g_error, sizeof(g_error)) != 0)
         {
             consoleClear();
             header("SD CARD");
@@ -524,12 +549,15 @@ int main(int argc, char **argv)
             printf("  Insert the SD card, then press " COLOR_TEXT "A" COLOR_RESET
                    " to retry.\n\n");
             printf("  " COLOR_TEXT "+" COLOR_RESET " exit\n");
+            present();
 
             if (down & HidNpadButton_Plus)
                 break;
             sleep_ms(50);
             continue;
         }
+
+        g_rescan = false;
 
         if (view == 0)
             g_selected = selected;
@@ -545,6 +573,7 @@ int main(int argc, char **argv)
             draw_backup();
         else
             draw_auto();
+        present();
 
         bool up = (down & HidNpadButton_AnyUp) != 0;
         bool dn = (down & HidNpadButton_AnyDown) != 0;

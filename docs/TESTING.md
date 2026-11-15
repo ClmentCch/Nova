@@ -15,10 +15,11 @@ Environment: Linux container, devkitA64 15.2.0 and libnx from the official
 | Installer engine on a real filesystem tree | `make -C tests/host` | 43 checks, 0 failures |
 | Automatic boot backup, marker, overwrite, rollback and AutoRCM status | `make -C tests/host` | 60 checks, 0 failures |
 | Release archive contents and inputs | `tools/release.py` | pass |
+| Console frames flushed to the display (`consoleUpdate`) | `aarch64-none-elf-objdump -d`, 7 calls | pass |
 
 The payload embedded in the NRO is the `dist/NOVA.bin` file built and
-verified in the `Nova-boot` branch (93,656 bytes, NOVA 2.0.1, SHA-256
-`603c4bc88c497c4dafbdc9dfa7e7709363817733b385bc11664f24592f33e2ef`).
+verified in the `Nova-boot` branch (93,656 bytes, NOVA 2.2.0, SHA-256
+`10e205d6bf6404bc7ae0b87341f89fb90dc0f6b83293f012a6a8e03676fb9fbc`).
 
 ### Installer engine tests
 
