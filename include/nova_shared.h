@@ -12,9 +12,9 @@
 #define NOVA_SHARED_H
 
 /* Release version. Also written to Nova/version.txt by the installer. */
-#define NOVA_VERSION_STRING "2.2.0"
+#define NOVA_VERSION_STRING "2.3.0"
 #define NOVA_VERSION_MAJOR  2
-#define NOVA_VERSION_MINOR  2
+#define NOVA_VERSION_MINOR  3
 #define NOVA_VERSION_PATCH  0
 
 /* Installer applet identity. */
