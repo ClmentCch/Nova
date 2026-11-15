@@ -1,0 +1,23 @@
+NOVA — third party notices
+
+NOVA Boot links against the hekate BDK.
+  hekate - A GUI based Nintendo Switch Bootloader
+  Copyright (c) 2018 naehrwert, st4rk
+  Copyright (c) 2018-2026 CTCaer
+  License: GNU GPL v2
+  https://github.com/CTCaer/hekate
+
+The 8x8 bitmap font in payload/ui/font8x8.h is derived from hekate's
+bootloader/gfx/gfx.c font table (GPL-2.0) and is used under the same license.
+
+FatFs R0.13c (bundled with the hekate BDK)
+  Copyright (c) 2006-2018 ChaN, 2018-2022 CTCaer
+  FatFs is distributed under its own permissive license inside the BDK;
+  NOVA's use of the BDK as a whole remains GPL-2.0.
+
+NOVA Installer is built with libnx and devkitPro.
+  libnx - Copyright (c) 2017-2026 libnx contributors, ISC license
+  devkitPro / devkitA64 - toolchain, not redistributed here.
+
+The official hekate payload redistributed in NOVA releases is unmodified
+upstream software from https://github.com/CTCaer/hekate/releases (GPL-2.0).

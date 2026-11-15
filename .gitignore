@@ -1,0 +1,10 @@
+build/
+payload/build/
+payload/.deps/
+tests/host/build/
+*.o
+*.d
+*.elf
+*.raw
+dist/*.zip
+!.gitkeep
