@@ -23,9 +23,16 @@ Nova-Installer.nro
   |     nova_verify_installation()
   |
   |-- UNINSTALL NOVA
+  |     restore the previous cold boot payload (payload.bin) when configured
   |     restore backup when it contains files
   |     remove NOVA owned files and empty NOVA folders
   |     verify removal; the backup folder is kept
+  |
+  |-- AUTOMATIC BOOT
+  |     back up payload.bin, write NOVA, verify hash and format
+  |     record state=pending plus the current NOVA boot counter
+  |     promote to ACTIVE only when the counter advances after a reboot
+  |     restore previous payload (or clear the slot) on rollback
 ```
 
 ## Compatibility checks
@@ -35,8 +42,11 @@ The embedded payload is accepted only when:
 - its size is between 1 KiB and hekate's 192 KiB payload limit;
 - it is not an NRO (`NRO0`), ELF (`\x7fELF`) or NSO (`NSO0`) image;
 - the first word is an ARM32 data-processing/branch instruction;
-- it contains the `NOVA 1.0.0` version marker, so installer and payload
-  versions cannot drift apart silently.
+- it contains the current `NOVA_VERSION_STRING` version marker, so installer
+  and payload versions cannot drift apart silently.
+
+Automatic boot adds one more check: the payload must be at most 128 KiB, the
+limit enforced by modchip `sdloader` firmware.
 
 `INSTALL NOVA` additionally requires a valid hekate payload on the SD card
 (root `hekate*.bin` or `bootloader/payloads/hekate*.bin`) and at least

@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "autoboot.h"
 #include "nova_fs.h"
 #include "nova_sha256.h"
 
@@ -36,12 +37,12 @@ static const char *CONFIG_TEXT =
     "version=" NOVA_VERSION_STRING "\n"
     "theme=aurora\n"
     "\n"
-    "; NOVA 1.0.0 ships the built-in aurora theme. This file is reserved for\n"
-    "; future theme selection and is never required for booting.\n";
+    "; NOVA " NOVA_VERSION_STRING " ships the built-in aurora theme. This file is\n"
+    "; reserved for future theme selection and is never required for booting.\n";
 
 static const char *THEME_TEXT =
-    "NOVA 1.0.0 uses the built-in \"aurora\" theme (pure black background,\n"
-    "blue and purple accents). No external theme assets are required.\n";
+    "NOVA " NOVA_VERSION_STRING " uses the built-in \"aurora\" theme (pure black\n"
+    "background, blue and purple accents). No external assets are required.\n";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -576,6 +577,20 @@ int nova_uninstall(nova_installer_t *st, nova_progress_fn cb, void *ctx,
     {
         set_err(err, err_size, "SD card not available");
         return -1;
+    }
+
+    /*
+     * A cold boot slot pointing at NOVA must not outlive the installation.
+     * Restore the previous payload first so a console cannot be left with a
+     * NOVA cold boot that has no installed files to draw from.
+     */
+    nova_autoboot_t autoboot;
+    nova_autoboot_scan(&autoboot);
+    if (autoboot.state == NOVA_AUTO_CONFIGURED || autoboot.state == NOVA_AUTO_ACTIVE ||
+        autoboot.state == NOVA_AUTO_OVERWRITTEN || autoboot.payload_is_nova)
+    {
+        if (nova_autoboot_disable(&autoboot, cb, ctx, err, err_size) != 0)
+            return -1;
     }
 
     bool had_backup = st->backup.present && st->backup.files > 0;

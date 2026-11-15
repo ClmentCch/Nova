@@ -9,6 +9,8 @@ Usage: verify_nro.py Nova-Installer.nro [--payload data/NOVA.bin]
 """
 import argparse
 import hashlib
+import os
+import re
 import struct
 import sys
 
@@ -80,10 +82,17 @@ def main():
     if romfs_size != 0:
         return fail("unexpected RomFS in the installer NRO")
 
+    header_path = os.path.join(os.path.dirname(__file__), "..", "include", "nova_shared.h")
+    header = open(header_path, encoding="utf-8").read()
+    match = re.search(r'NOVA_VERSION_STRING\s+"([0-9.]+)"', header)
+    if not match:
+        return fail("cannot read NOVA_VERSION_STRING")
+    version = match.group(1)
+
     if payload not in data:
         return fail("embedded NOVA payload not found verbatim in the NRO")
-    if b"NOVA " + b"1.0.0" not in payload:
-        return fail("payload version marker missing")
+    if ("NOVA " + version).encode() not in payload:
+        return fail(f"payload version marker {version} missing")
 
     sha = hashlib.sha256(payload).hexdigest()
     print(f"OK: {args.nro}")
@@ -96,7 +105,7 @@ def main():
     print(f"  flags          {flags:#x}")
     print(f"  icon           {icon_size} bytes")
     print(f"  NACP           {nacp_size} bytes")
-    print(f"  payload        {len(payload)} bytes sha256 {sha}")
+    print(f"  payload        {len(payload)} bytes NOVA {version} sha256 {sha}")
     return 0
 
 

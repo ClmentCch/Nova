@@ -12,9 +12,9 @@
 #define NOVA_SHARED_H
 
 /* Release version. Also written to Nova/version.txt by the installer. */
-#define NOVA_VERSION_STRING "1.0.0"
+#define NOVA_VERSION_STRING "1.1.0"
 #define NOVA_VERSION_MAJOR  1
-#define NOVA_VERSION_MINOR  0
+#define NOVA_VERSION_MINOR  1
 #define NOVA_VERSION_PATCH  0
 
 /* Installer applet identity. */
@@ -49,6 +49,26 @@
 #define NOVA_HEKATE_INI         "bootloader/ini/NOVA.ini"
 #define NOVA_HEKATE_INI_MAIN    "bootloader/hekate_ipl.ini"
 #define NOVA_HEKATE_SYS_KIPM    "bootloader/sys/emummc.kipm"
+
+/*
+ * Automatic cold boot.
+ *
+ * Modchip/dongle loaders (Spacecraft-NX, HWFLY-NX, Picofly, SD payload
+ * capable dongles) load "payload.bin" from the SD root instead of BOOT0.
+ * NOVA can occupy that slot; the previous payload is kept for rollback.
+ * NOVA writes Nova/state/boot.txt on every start so the installer can show
+ * whether a configured cold boot actually reached NOVA.
+ *
+ * BOOT0/BOOT1 and AutoRCM are never touched.
+ */
+#define NOVA_AUTOBOOT_PAYLOAD      "payload.bin"
+#define NOVA_AUTOBOOT_BACKUP_DIR   "Nova/backup/autoboot"
+#define NOVA_AUTOBOOT_BACKUP_FILE  "Nova/backup/autoboot/payload.bin"
+#define NOVA_AUTOBOOT_META_FILE    "Nova/backup/autoboot/meta.txt"
+#define NOVA_STATE_DIR             "Nova/state"
+#define NOVA_BOOT_MARKER           "Nova/state/boot.txt"
+#define NOVA_AUTOBOOT_STATE_FILE   "Nova/state/autoboot.txt"
+#define NOVA_AUTOBOOT_MODE         "sd_payload"
 
 /* Atmosphère / emuMMC paths inspected for detection (read-only). */
 #define NOVA_ATMOSPHERE_DIR     "atmosphere"

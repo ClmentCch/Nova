@@ -12,6 +12,7 @@
 
 #include <switch.h>
 
+#include "autoboot.h"
 #include "installer.h"
 #include "nova_fs.h"
 #include "nova_shared.h"
@@ -26,6 +27,7 @@
 
 static PadState g_pad;
 static nova_installer_t g_state;
+static nova_autoboot_t g_auto;
 static char g_error[192];
 static int g_selected;
 
@@ -148,7 +150,8 @@ static void draw_main(void)
     menu_item("INSTALL NOVA", g_selected == 1);
     menu_item("UNINSTALL NOVA", g_selected == 2);
     menu_item("BACKUP & RESTORE", g_selected == 3);
-    menu_item("EXIT", g_selected == 4);
+    menu_item("AUTOMATIC BOOT", g_selected == 4);
+    menu_item("EXIT", g_selected == 5);
 
     printf("\n");
     rule();
@@ -183,6 +186,58 @@ static void draw_backup(void)
     menu_item("CREATE BACKUP", g_selected == 0);
     menu_item("VERIFY BACKUP", g_selected == 1);
     menu_item("RESTORE BACKUP", g_selected == 2);
+    menu_item("BACK", g_selected == 3);
+
+    printf("\n");
+    rule();
+    printf("  " COLOR_TEXT "A" COLOR_RESET " SELECT    " COLOR_TEXT "B" COLOR_RESET
+           " BACK\n");
+}
+
+static void draw_auto(void)
+{
+    header("AUTOMATIC COLD BOOT");
+
+    printf("  %-24s %s\n", "CONSOLE", g_auto.soc);
+    printf("  %-24s %s\n", "COMPATIBILITY", nova_autoboot_compat_label(&g_auto));
+
+    printf("  %-24s ", "SD PAYLOAD SLOT");
+    if (g_auto.payload_present)
+        printf("%s  %llu B\n", nova_autoboot_kind_label(g_auto.payload_kind),
+               (unsigned long long)g_auto.payload_size);
+    else
+        printf("payload.bin missing\n");
+
+    printf("  %-24s ", "COLD BOOT STATE");
+    if (g_auto.state == NOVA_AUTO_ACTIVE)
+        printf(COLOR_OK "%s" COLOR_RESET "\n", nova_autoboot_state_label(g_auto.state));
+    else if (g_auto.state == NOVA_AUTO_CONFIGURED)
+        printf(COLOR_WARN "%s" COLOR_RESET "\n", nova_autoboot_state_label(g_auto.state));
+    else if (g_auto.state == NOVA_AUTO_OVERWRITTEN)
+        printf(COLOR_ERR "%s" COLOR_RESET "\n", nova_autoboot_state_label(g_auto.state));
+    else
+        printf("%s\n", nova_autoboot_state_label(g_auto.state));
+
+    if (g_auto.state == NOVA_AUTO_CONFIGURED || g_auto.state == NOVA_AUTO_ACTIVE)
+        printf("  %-24s %lu (configured at %lu)\n", "NOVA BOOTS",
+               (unsigned long)g_auto.nova_boots, (unsigned long)g_auto.configured_boots);
+
+    printf("  %-24s ", "ROLLBACK");
+    if (g_auto.backup_present)
+        printf("%s%s\n", nova_autoboot_kind_label(g_auto.backup_kind),
+               strcmp(g_auto.backup_kind, "none") ? " (verified)" : " (slot was empty)");
+    else
+        printf("none\n");
+
+    printf("  %-24s %s\n", "BOOT0 / NAND", "not touched");
+    rule();
+    printf("  %s\n", g_auto.detail);
+    rule();
+    printf("  " COLOR_TEXT "MENU" COLOR_RESET "\n\n");
+
+    menu_item("ENABLE AUTOMATIC BOOT", g_selected == 0);
+    menu_item("RESTORE PREVIOUS BOOT", g_selected == 1);
+    menu_item("RE-CHECK STATUS", g_selected == 2);
     menu_item("BACK", g_selected == 3);
 
     printf("\n");
@@ -338,6 +393,55 @@ static void run_uninstall(void)
                 "Atmosphere, emuMMC and Nintendo files were not modified.");
 }
 
+static void run_auto_enable(void)
+{
+    if (!confirm_dialog("ENABLE AUTOMATIC BOOT",
+                        "Set SD:/payload.bin to NOVA? The current payload is backed up first."))
+        return;
+
+    begin_progress("Checking automatic boot");
+    if (nova_autoboot_enable(&g_auto, progress_cb, NULL, g_error, sizeof(g_error)) != 0)
+    {
+        show_result("ENABLE AUTOMATIC BOOT", false, g_error, NULL);
+        return;
+    }
+
+    show_result("ENABLE AUTOMATIC BOOT", true,
+                "payload.bin set to NOVA and SHA-256 verified.",
+                "Power off and on. NOVA must appear before it is confirmed.");
+}
+
+static void run_auto_disable(void)
+{
+    char previous[24];
+    snprintf(previous, sizeof(previous), "%s", g_auto.backup_kind);
+
+    if (!confirm_dialog("RESTORE PREVIOUS BOOT",
+                        "Restore the previous payload.bin and remove NOVA from the cold boot slot?"))
+        return;
+
+    begin_progress("Restoring previous boot");
+    if (nova_autoboot_disable(&g_auto, progress_cb, NULL, g_error, sizeof(g_error)) != 0)
+    {
+        show_result("RESTORE PREVIOUS BOOT", false, g_error, NULL);
+        return;
+    }
+
+    char line[128];
+    if (!strcmp(previous, "none"))
+        snprintf(line, sizeof(line), "payload.bin removed; the injector slot is empty.");
+    else
+        snprintf(line, sizeof(line), "Previous payload (%s) restored and verified.",
+                 nova_autoboot_kind_label(previous));
+    show_result("RESTORE PREVIOUS BOOT", true, line, NULL);
+}
+
+static void run_auto_recheck(void)
+{
+    nova_autoboot_scan(&g_auto);
+    show_result("AUTOMATIC BOOT", true, nova_autoboot_state_label(g_auto.state), g_auto.detail);
+}
+
 static void run_backup_action(int action)
 {
     begin_progress("Working");
@@ -380,9 +484,10 @@ int main(int argc, char **argv)
     consoleInit(NULL);
     padInitializeDefault(&g_pad);
 
-    int view = 0; /* 0 = main, 1 = backup */
+    int view = 0; /* 0 = main, 1 = backup, 2 = automatic boot */
     int selected = 0;
     int backup_selected = 0;
+    int auto_selected = 0;
 
     while (appletMainLoop())
     {
@@ -405,12 +510,20 @@ int main(int argc, char **argv)
             continue;
         }
 
-        g_selected = view == 0 ? selected : backup_selected;
+        if (view == 0)
+            g_selected = selected;
+        else if (view == 1)
+            g_selected = backup_selected;
+        else
+            g_selected = auto_selected;
+
         consoleClear();
         if (view == 0)
             draw_main();
-        else
+        else if (view == 1)
             draw_backup();
+        else
+            draw_auto();
 
         bool up = (down & HidNpadButton_AnyUp) != 0;
         bool dn = (down & HidNpadButton_AnyDown) != 0;
@@ -420,9 +533,9 @@ int main(int argc, char **argv)
         if (view == 0)
         {
             if (up)
-                selected = (selected + 4) % 5;
+                selected = (selected + 5) % 6;
             if (dn)
-                selected = (selected + 1) % 5;
+                selected = (selected + 1) % 6;
 
             if (back)
                 break;
@@ -444,12 +557,17 @@ int main(int argc, char **argv)
                     view = 1;
                     backup_selected = 0;
                     break;
+                case 4:
+                    nova_autoboot_scan(&g_auto);
+                    view = 2;
+                    auto_selected = 0;
+                    break;
                 default:
                     goto done;
                 }
             }
         }
-        else
+        else if (view == 1)
         {
             if (up)
                 backup_selected = (backup_selected + 3) % 4;
@@ -471,6 +589,38 @@ int main(int argc, char **argv)
                 else
                 {
                     run_backup_action(backup_selected);
+                }
+            }
+        }
+        else
+        {
+            if (up)
+                auto_selected = (auto_selected + 3) % 4;
+            if (dn)
+                auto_selected = (auto_selected + 1) % 4;
+
+            if (back)
+            {
+                view = 0;
+                selected = 4;
+            }
+            else if (confirm)
+            {
+                switch (auto_selected)
+                {
+                case 0:
+                    run_auto_enable();
+                    break;
+                case 1:
+                    run_auto_disable();
+                    break;
+                case 2:
+                    run_auto_recheck();
+                    break;
+                default:
+                    view = 0;
+                    selected = 4;
+                    break;
                 }
             }
         }

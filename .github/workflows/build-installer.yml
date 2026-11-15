@@ -52,10 +52,9 @@ jobs:
           python3 tools/release.py \
             --installer Nova-Installer.nro \
             --payload data/NOVA.bin \
-            --hekate release/hekate_ctcaer_6.5.5.bin \
-            --out dist/NOVA-v1.0.0.zip
+            --hekate release/hekate_ctcaer_6.5.5.bin
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NOVA-v1.0.0
-          path: dist/NOVA-v1.0.0.zip
+          name: NOVA-release
+          path: dist/NOVA-v*.zip

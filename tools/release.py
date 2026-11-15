@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the NOVA release archive.
 
-Layout inside NOVA-v1.0.0.zip (extract to the SD card root):
+Layout inside NOVA-v<version>.zip (extract to the SD card root):
 
     Nova/NOVA.bin
     Nova/version.txt
@@ -13,7 +13,7 @@ Layout inside NOVA-v1.0.0.zip (extract to the SD card root):
 
 Usage:
     release.py --installer Nova-Installer.nro --payload data/NOVA.bin \
-               --hekate release/hekate_ctcaer_6.5.5.bin --out dist/NOVA-v1.0.0.zip
+               --hekate release/hekate_ctcaer_6.5.5.bin
 """
 import argparse
 import hashlib
@@ -23,8 +23,19 @@ import struct
 import sys
 import zipfile
 
-VERSION = "1.0.0"
 HEKATE_MAGIC = b"ICTC"
+
+
+def project_version():
+    header_path = os.path.join(os.path.dirname(__file__), "..", "include", "nova_shared.h")
+    with open(header_path, encoding="utf-8") as handle:
+        match = re.search(r'NOVA_VERSION_STRING\s+"([0-9.]+)"', handle.read())
+    if not match:
+        raise SystemExit("cannot read NOVA_VERSION_STRING from include/nova_shared.h")
+    return match.group(1)
+
+
+VERSION = project_version()
 
 
 def sha256(data):
@@ -77,7 +88,7 @@ def build_zip(args):
             f"[nova]\nversion={VERSION}\ntheme=aurora\n"
         ).encode(),
         "Nova/themes/README.txt": (
-            "NOVA 1.0.0 uses the built-in \"aurora\" theme (pure black background,\n"
+            f"NOVA {VERSION} uses the built-in \"aurora\" theme (pure black background,\n"
             "blue and purple accents). No external theme assets are required.\n"
         ).encode(),
         "Nova/README.txt": (
@@ -88,7 +99,11 @@ def build_zip(args):
             "installer). The installer writes the same file to both locations\n"
             "and validates every copy with SHA-256.\n\n"
             "NOVA never writes BOOT0/BOOT1, the NAND, atmosphere/ or emummc/,\n"
-            "and never edits bootloader/hekate_ipl.ini.\n"
+            "and never edits bootloader/hekate_ipl.ini.\n\n"
+            "For automatic startup, open AUTOMATIC BOOT in the installer. It\n"
+            "places this payload in SD:/payload.bin for modchip/dongle loaders\n"
+            "that read it at power-on, keeps the previous payload for rollback,\n"
+            "and verifies the result with SHA-256.\n"
         ).encode(),
         "switch/Nova-Installer.nro": nro,
         hekate_name: hekate,

@@ -29,6 +29,11 @@ Nova-installer  -> Nova-Installer.nro, this application
   `Nintendo/` and the user's `bootloader/hekate_ipl.ini` are never touched.
 - **BACKUP & RESTORE** – create, verify and restore a backup with a
   SHA-256 manifest. Backups live in `Nova/backup/latest/`.
+- **AUTOMATIC BOOT** – prepares the SD root `payload.bin` that modchip and
+  dongle loaders execute at power-on, backs up the previous payload, verifies
+  NOVA with SHA-256, and restores the previous boot on request. Console type
+  (Erista/Mariko) is detected when `spl:` is readable; the actual cold boot is
+  only marked `ACTIVE` after NOVA's own boot counter advances.
 - Controller driven console UI: D-pad, A confirm, B back, + exit.
 
 ## SD card layout
@@ -42,6 +47,9 @@ Nova-installer  -> Nova-Installer.nro, this application
 | `Nova/backup/latest/` | NOVA | backup files plus `manifest.txt` |
 | `bootloader/payloads/NOVA.bin` | NOVA | payload copy loadable from hekate |
 | `bootloader/ini/NOVA.ini` | NOVA | NOVA owned hekate entries (`nvstk`, `nvemu`) |
+| `payload.bin` | NOVA (auto boot) | cold boot slot read by modchip/dongle loaders |
+| `Nova/backup/autoboot/` | NOVA | previous `payload.bin` plus its manifest |
+| `Nova/state/` | NOVA | boot counter and automatic boot state |
 | `switch/Nova-Installer.nro` | user | this application |
 | `hekate_ctcaer_x.x.x.bin` | hekate | official payload, supplied by the release |
 
@@ -53,6 +61,13 @@ on the SD card and can be undone with **UNINSTALL NOVA** or **RESTORE
 BACKUP**. At boot time NOVA does not patch any file either: it sets hekate's
 documented `boot_cfg` byte in its own in-memory payload copy to select the
 `nvstk` or `nvemu` entry.
+
+Automatic boot only fills the SD payload slot used by external modchip/dongle
+loaders. The installer cannot detect whether such a loader is installed, so
+compatibility is shown as unknown until NOVA's boot counter advances after a
+reboot. AutoRCM and any BOOT0/BOOT1 modification are deliberately not offered;
+they are the only way to force RCM in software and are outside NOVA's safety
+rules. See [docs/AUTOMATIC-BOOT.md](docs/AUTOMATIC-BOOT.md).
 
 ## Build
 
@@ -85,12 +100,12 @@ python3 tools/verify_nro.py Nova-Installer.nro
 python3 tools/release.py \
     --installer Nova-Installer.nro \
     --payload data/NOVA.bin \
-    --hekate release/hekate_ctcaer_6.5.5.bin \
-    --out dist/NOVA-v1.0.0.zip
+    --hekate release/hekate_ctcaer_6.5.5.bin
 ```
 
 The archive contains `Nova/`, `switch/Nova-Installer.nro` and the official
-`hekate_ctcaer_6.5.5.bin`. Extract it to the SD card root.
+`hekate_ctcaer_6.5.5.bin`; the version in the file name comes from
+`include/nova_shared.h`. Extract it to the SD card root.
 
 ## Testing status
 
@@ -101,7 +116,9 @@ The archive contains `Nova/`, `switch/Nova-Installer.nro` and the official
 | Embedded payload byte-identical to Nova-boot `dist/NOVA.bin` | yes |
 | SHA-256 against FIPS test vectors | yes (5 checks) |
 | Installer engine: scan, transfer, install, uninstall, backup, restore | yes (43 host checks) |
+| Automatic boot: backup, verify, marker promotion, overwrite, rollback | yes (44 host checks) |
 | Console UI rendered on a Switch | not run here |
+| Cold boot through a real modchip/dongle | not run here |
 | Install on a physical SD card | not run here |
 | Launch from hbmenu on console | not run here |
 | EmuMMC, Atmosphère, hekate boot paths | not run here (see Nova-boot) |
