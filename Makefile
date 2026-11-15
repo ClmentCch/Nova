@@ -99,7 +99,7 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf $(TARGET).map dist
+	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf $(TARGET).map
 
 #---------------------------------------------------------------------------------
 else
@@ -116,6 +116,9 @@ $(OUTPUT).elf    : $(OFILES)
 %.bin.o %_bin.h  : %.bin
 	@echo $(notdir $<)
 	@$(bin2o)
+
+# payload_blob.s uses .incbin, so the assembler object must follow the payload.
+payload_blob.o: $(TOPDIR)/data/NOVA.bin
 
 -include $(DEPENDS)
 

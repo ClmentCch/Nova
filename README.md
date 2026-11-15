@@ -116,7 +116,7 @@ The archive contains `Nova/`, `switch/Nova-Installer.nro` and the official
 | Embedded payload byte-identical to Nova-boot `dist/NOVA.bin` | yes |
 | SHA-256 against FIPS test vectors | yes (5 checks) |
 | Installer engine: scan, transfer, install, uninstall, backup, restore | yes (43 host checks) |
-| Automatic boot: backup, verify, marker promotion, overwrite, rollback | yes (44 host checks) |
+| Automatic boot: backup, verify, marker promotion, overwrite, rollback | yes (52 host checks) |
 | Console UI rendered on a Switch | not run here |
 | Cold boot through a real modchip/dongle | not run here |
 | Install on a physical SD card | not run here |

@@ -8,3 +8,5 @@ tests/host/test_installer
 tests/host/test_autoboot
 tests/host/sdmc:/
 release/*.bin
+__pycache__/
+*.pyc

@@ -13,12 +13,12 @@ Environment: Linux container, devkitA64 15.2.0 and libnx from the official
 | Embedded payload byte-identical to `data/NOVA.bin` | `tools/verify_nro.py` | pass |
 | SHA-256 FIPS vectors and 1,000,000-byte stream | `make -C tests/host` | 5 checks, 0 failures |
 | Installer engine on a real filesystem tree | `make -C tests/host` | 43 checks, 0 failures |
-| Automatic boot backup, marker, overwrite and rollback | `make -C tests/host` | 44 checks, 0 failures |
+| Automatic boot backup, marker, overwrite and rollback | `make -C tests/host` | 52 checks, 0 failures |
 | Release archive contents and inputs | `tools/release.py` | pass |
 
 The payload embedded in the NRO is the `dist/NOVA.bin` file built and
-verified in the `Nova-boot` branch (86,224 bytes, NOVA 1.1.0, SHA-256
-`54ff802174789ad86b532902f733e025dbe713bab841f8c3d8a549109bd239a3`).
+verified in the `Nova-boot` branch (86,224 bytes, NOVA 2.0.0, SHA-256
+`d232e4478d29ff5fc8f0a61a05d797e86ccbb1bf158096bacefc15bb089bda83`).
 
 ### Installer engine tests
 
