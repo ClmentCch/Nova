@@ -1,0 +1,29 @@
+NOVA - custom boot system for Nintendo Switch
+Copyright (c) 2026 NOVA contributors
+
+NOVA is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 2 of the License, or (at your option) any later
+version. See LICENSE.
+
+Third party components
+----------------------
+
+hekate - https://github.com/CTCaer/hekate
+  Copyright (c) 2018-2026 CTCaer and contributors.
+  Licensed under GPL-2.0. The NOVA Boot payload in the Nova-boot branch is
+  built against hekate's BDK and therefore is distributed under the same
+  license. The release archive redistributes the unmodified official payload
+  hekate_ctcaer_6.5.5.bin published by the hekate project; its source is
+  available at the URL above.
+
+libnx - https://github.com/switchbrew/libnx
+  Copyright (c) 2017-2026 switchbrew and contributors.
+  zlib-style permissive license. Used to build Nova-Installer.nro.
+
+devkitPro / devkitA64 toolchain - https://devkitpro.org
+  Used to build the NRO and the Tegra payload. Not redistributed here.
+
+Atmosphere - https://github.com/Atmosphere-NX/Atmosphere
+  GPL-2.0. NOVA detects and launches Atmosphere installations; no
+  Atmosphere code is included in this repository.

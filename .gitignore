@@ -1,0 +1,9 @@
+build/
+*.elf
+*.nacp
+*.map
+*.o
+tests/host/test_sha256
+tests/host/test_installer
+tests/host/sdmc:/
+release/*.bin

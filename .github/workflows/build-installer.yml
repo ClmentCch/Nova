@@ -1,0 +1,61 @@
+name: Build Nova-Installer
+
+on:
+  push:
+    branches: [Nova-installer]
+  pull_request:
+    branches: [Nova-installer]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build NRO
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          make -j"$(nproc)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nova-installer
+          path: Nova-Installer.nro
+
+  package:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: nova-installer
+
+      - name: Fetch canonical payload from Nova-boot
+        run: |
+          git fetch --depth=1 origin Nova-boot
+          git show FETCH_HEAD:dist/NOVA.bin > data/NOVA.bin
+
+      - name: Fetch official hekate payload
+        run: |
+          mkdir -p release
+          curl -fsSL -o release/hekate_ctcaer_6.5.5.bin \
+            https://github.com/CTCaer/hekate/releases/download/v6.5.5/hekate_ctcaer_6.5.5.bin
+          test "$(stat -c%s release/hekate_ctcaer_6.5.5.bin)" = "110208"
+
+      - name: Verify NRO and package release
+        run: |
+          python3 tools/verify_nro.py Nova-Installer.nro
+          python3 tools/release.py \
+            --installer Nova-Installer.nro \
+            --payload data/NOVA.bin \
+            --hekate release/hekate_ctcaer_6.5.5.bin \
+            --out dist/NOVA-v1.0.0.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-v1.0.0
+          path: dist/NOVA-v1.0.0.zip
